@@ -24,7 +24,35 @@ if (-not $istAdmin) {
 }
 
 $libOrdner = Join-Path $PSScriptRoot 'lib'
-. (Join-Path $libOrdner 'Erkennung.ps1')
+
+# Hilfsdateien prüfen und laden; bei Problemen die genaue Ursache anzeigen statt still zu scheitern.
+$ladeProbleme = New-Object System.Collections.ArrayList
+foreach ($name in 'Erkennung.ps1', 'Ausfuehrung.ps1') {
+    $pfad = Join-Path $libOrdner $name
+    if (-not (Test-Path -LiteralPath $pfad)) {
+        [void]$ladeProbleme.Add("Datei fehlt: $pfad")
+        continue
+    }
+    $tokens = $null
+    $parseFehler = $null
+    [void][System.Management.Automation.Language.Parser]::ParseFile($pfad, [ref]$tokens, [ref]$parseFehler)
+    foreach ($f in @($parseFehler | Select-Object -First 5)) {
+        [void]$ladeProbleme.Add("$name, Zeile $($f.Extent.StartLineNumber): $($f.Message)")
+    }
+}
+if ($ladeProbleme.Count -eq 0) {
+    try { . (Join-Path $libOrdner 'Erkennung.ps1') }
+    catch { [void]$ladeProbleme.Add("Erkennung.ps1 konnte nicht geladen werden: $($_.Exception.Message)") }
+    if ($ladeProbleme.Count -eq 0 -and -not (Get-Command Get-ProgrammListe -ErrorAction SilentlyContinue)) {
+        [void]$ladeProbleme.Add('Erkennung.ps1 wurde geladen, enthält aber die erwarteten Funktionen nicht.')
+    }
+}
+if ($ladeProbleme.Count -gt 0) {
+    $text = "Die App kann nicht starten:`n`n" + ($ladeProbleme -join "`n`n") +
+        "`n`nBitte den kompletten Ordner (mit Unterordner 'lib') entpacken. Strg+C kopiert diese Meldung."
+    [void][System.Windows.MessageBox]::Show($text, 'Apps deinstallieren', 'OK', 'Error')
+    exit 1
+}
 
 $logOrdner = Join-Path $env:LOCALAPPDATA 'AppsDeinstallieren\Logs'
 [void](New-Item -ItemType Directory -Path $logOrdner -Force)
