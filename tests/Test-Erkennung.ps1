@@ -1,7 +1,9 @@
 ﻿# Selbstständiger Test der Erkennungslogik (ohne Zusatzmodule, entfernt nichts).
 # Aufruf:  powershell -NoProfile -ExecutionPolicy Bypass -File tests\Test-Erkennung.ps1
 
-. (Join-Path (Split-Path -Parent $PSScriptRoot) 'lib\Erkennung.ps1')
+$erkennung = Join-Path (Split-Path -Parent $PSScriptRoot) 'lib\Erkennung.ps1'
+if (-not (Test-Path -LiteralPath $erkennung)) { $erkennung = Join-Path $PSScriptRoot 'Erkennung.ps1' }
+. $erkennung
 
 $script:Fehler = 0
 $script:Anzahl = 0

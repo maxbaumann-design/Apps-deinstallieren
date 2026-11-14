@@ -6,7 +6,8 @@ Es muss nichts installiert werden. Das Werkzeug nutzt PowerShell und WPF, die in
 
 ## Starten
 
-1. Repository als ZIP herunterladen und entpacken (oder klonen).
+1. Repository als ZIP herunterladen (auf GitHub: **Code → Download ZIP**) und komplett entpacken.
+   Benötigt werden `Start.cmd`, `AppsDeinstallieren.ps1`, `Erkennung.ps1` und `Ausfuehrung.ps1`. Die beiden letzten dürfen im Unterordner `lib` oder direkt neben `Start.cmd` liegen.
 2. `Start.cmd` doppelklicken.
 3. Die Admin-Abfrage von Windows einmal bestätigen.
 

@@ -27,12 +27,16 @@ $libOrdner = Join-Path $PSScriptRoot 'lib'
 
 # Hilfsdateien prüfen und laden; bei Problemen die genaue Ursache anzeigen statt still zu scheitern.
 $ladeProbleme = New-Object System.Collections.ArrayList
+$hilfsdateien = @{}
 foreach ($name in 'Erkennung.ps1', 'Ausfuehrung.ps1') {
+    # Die Hilfsdateien dürfen im Unterordner "lib" oder direkt neben diesem Skript liegen.
     $pfad = Join-Path $libOrdner $name
+    if (-not (Test-Path -LiteralPath $pfad)) { $pfad = Join-Path $PSScriptRoot $name }
     if (-not (Test-Path -LiteralPath $pfad)) {
-        [void]$ladeProbleme.Add("Datei fehlt: $pfad")
+        [void]$ladeProbleme.Add("Datei fehlt: $name (gesucht in $libOrdner und $PSScriptRoot)")
         continue
     }
+    $hilfsdateien[$name] = $pfad
     $tokens = $null
     $parseFehler = $null
     [void][System.Management.Automation.Language.Parser]::ParseFile($pfad, [ref]$tokens, [ref]$parseFehler)
@@ -41,7 +45,7 @@ foreach ($name in 'Erkennung.ps1', 'Ausfuehrung.ps1') {
     }
 }
 if ($ladeProbleme.Count -eq 0) {
-    try { . (Join-Path $libOrdner 'Erkennung.ps1') }
+    try { . $hilfsdateien['Erkennung.ps1'] }
     catch { [void]$ladeProbleme.Add("Erkennung.ps1 konnte nicht geladen werden: $($_.Exception.Message)") }
     if ($ladeProbleme.Count -eq 0 -and -not (Get-Command Get-ProgrammListe -ErrorAction SilentlyContinue)) {
         [void]$ladeProbleme.Add('Erkennung.ps1 wurde geladen, enthält aber die erwarteten Funktionen nicht.')
@@ -49,7 +53,8 @@ if ($ladeProbleme.Count -eq 0) {
 }
 if ($ladeProbleme.Count -gt 0) {
     $text = "Die App kann nicht starten:`n`n" + ($ladeProbleme -join "`n`n") +
-        "`n`nBitte den kompletten Ordner (mit Unterordner 'lib') entpacken. Strg+C kopiert diese Meldung."
+        "`n`nEs werden alle vier Dateien benötigt: Start.cmd, AppsDeinstallieren.ps1, Erkennung.ps1 und Ausfuehrung.ps1." +
+        "`nStrg+C kopiert diese Meldung."
     [void][System.Windows.MessageBox]::Show($text, 'Apps deinstallieren', 'OK', 'Error')
     exit 1
 }
@@ -313,8 +318,8 @@ function Set-Bedienbar {
 
 # --- Hintergrundarbeit -------------------------------------------------------
 $arbeitsSkript = @'
-param($Aufgaben, $Sync, $LibOrdner, $LogOrdner, $Simulieren)
-. (Join-Path $LibOrdner 'Ausfuehrung.ps1')
+param($Aufgaben, $Sync, $AusfuehrungPfad, $LogOrdner, $Simulieren)
+. $AusfuehrungPfad
 $i = 0
 foreach ($a in $Aufgaben) {
     if ($Sync.Abbruch) {
@@ -344,7 +349,7 @@ function Start-Lauf {
     $rs.Open()
     $ps = [powershell]::Create()
     $ps.Runspace = $rs
-    [void]$ps.AddScript($arbeitsSkript).AddArgument($Aufgaben).AddArgument($sync).AddArgument($libOrdner).AddArgument($logOrdner).AddArgument($Simulieren)
+    [void]$ps.AddScript($arbeitsSkript).AddArgument($Aufgaben).AddArgument($sync).AddArgument($hilfsdateien['Ausfuehrung.ps1']).AddArgument($logOrdner).AddArgument($Simulieren)
 
     $script:Lauf = @{
         Sync       = $sync
@@ -533,7 +538,7 @@ $fenster.add_Closing({
         }
     })
 
-$fenster.add_ContentRendered({ Set-Filter; Update-Listen })
+$fenster.add_ContentRendered({ Write-Protokoll 'Apps deinstallieren, Version 1.1'; Set-Filter; Update-Listen })
 
 try {
     [void]$fenster.ShowDialog()
